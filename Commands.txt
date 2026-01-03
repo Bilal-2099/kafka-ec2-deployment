@@ -1,88 +1,182 @@
-Amazon Linux CLI VS Code:
+# Kafka Setup on Amazon Linux (EC2) using VS Code CLI
 
--- Zookeeper
+This document provides a clean, step-by-step guide to install and run **Apache Kafka with Zookeeper** on an **Amazon Linux EC2 instance**, using **VS Code SSH (Remote - SSH)**.
 
-ssh connect ec2 to vs code
+---
 
-sudo yum update
+## Prerequisites
 
-sudo yum install java
+* Amazon Linux EC2 instance (running)
+* Java installed
+* VS Code with **Remote - SSH** extension
+* EC2 Security Group allowing port **9092**
 
+---
+
+## Step 1: Connect EC2 to VS Code
+
+Use VS Code **Remote - SSH** to connect to your EC2 instance.
+
+---
+
+## Step 2: Update System and Install Java
+
+```bash
+sudo yum update -y
+sudo yum install java -y
 java -version
+```
 
--- Get URL from Webpage: https://downloads.apache.org/kafka/3.8.1/kafka_2.12-3.8.1.tgz
+---
 
-wget https://downloads.apache.org/kafka/3.8.1/kafka_2.12-3.8.1.tgz                      ```````
+## Step 3: Download and Install Kafka
 
+Download Kafka (Scala 2.12, Kafka 3.8.1):
+
+```bash
+wget https://downloads.apache.org/kafka/3.8.1/kafka_2.12-3.8.1.tgz
 ls
+```
 
+Extract and move Kafka:
+
+```bash
 tar -xzf kafka_2.12-3.8.1.tgz
-
-ls
-
 sudo mv kafka_2.12-3.8.1 /usr/local/kafka
-
 cd /usr/local/kafka/
+```
 
+---
+
+## Step 4: Configure Kafka Broker
+
+Edit Kafka configuration:
+
+```bash
 sudo nano config/server.properties
+```
 
--- Scroll Down and Uncomment advertised.listeners=PLAINTEXT://your-host
--- Modify it to advertised.listeners=PLAINTEXT://<your_ec2_instance_public_IP>:9092
--- CTRL-S to Save and Then CTRL-X to exit file
+### Changes to Make
 
+* Scroll down and **uncomment**:
+
+```
+advertised.listeners=PLAINTEXT://your-host
+```
+
+* Replace with your EC2 public IP:
+
+```
+advertised.listeners=PLAINTEXT://<EC2_PUBLIC_IP>:9092
+```
+
+Save and exit:
+
+* **CTRL + S** → Save
+* **CTRL + X** → Exit
+
+---
+
+## Step 5: Start Zookeeper
+
+In **Terminal 1**:
+
+```bash
+cd /usr/local/kafka/
 bin/zookeeper-server-start.sh config/zookeeper.properties
+```
 
--- Zookeeper starts running
+Zookeeper will start running.
 
--- Open another bash and Run below commands
--- Kafka
+---
 
+## Step 6: Start Kafka Broker
+
+Open **Terminal 2**:
+
+```bash
 ssh connect ec2 to vs code
-
 export KAFKA_HEAP_OPTS="-Xmx256M -Xms128M"
-
--- Skip this! It is to check files
-ps aux | grep zookeeper
-
-ps aux | grep kafka
------------------------------
-
 cd /usr/local/kafka/
-
 bin/kafka-server-start.sh config/server.properties
+```
 
+(Optional – check running processes):
 
-
--- Open another bash and Run below commands
--- Producer
-
-ssh connect ec2 to vs code
-
--- Skip this It is to check port and kill the process properly.
+```bash
 ps aux | grep zookeeper
-
-kill 27011
-
 ps aux | grep kafka
+```
 
-kill 27851
--------------------------------------------------------------------
+---
 
-cd /usr/local/kafka/
+## Step 7: Create Kafka Topic & Producer
 
-bin/kafka-topics.sh --create --topic kafka_project --bootstrap-server 184.72.77.226:9092 --replication-factor 1 --partitions 1
+Open **Terminal 3**:
 
-bin/kafka-console-producer.sh --topic kafka_project --bootstrap-server 184.72.77.226:9092
-
--- Open another bash and Run below commands
--- Consumer
-
+```bash
 ssh connect ec2 to vs code
-
 cd /usr/local/kafka/
+```
 
-bin/kafka-console-consumer.sh --topic kafka_project --bootstrap-server 184.72.77.226:9092
+Create topic:
 
-Then Run KafkaProducer.ipynb
-After Run KafkaConsumer.ipynb But both should run in separate terminals
-Then Check S3Bucket
+```bash
+bin/kafka-topics.sh --create \
+--topic kafka_project \
+--bootstrap-server <EC2_PUBLIC_IP>:9092 \
+--replication-factor 1 \
+--partitions 1
+```
+
+Start producer:
+
+```bash
+bin/kafka-console-producer.sh \
+--topic kafka_project \
+--bootstrap-server <EC2_PUBLIC_IP>:9092
+```
+
+---
+
+## Step 8: Start Kafka Consumer
+
+Open **Terminal 4**:
+
+```bash
+ssh connect ec2 to vs code
+cd /usr/local/kafka/
+bin/kafka-console-consumer.sh \
+--topic kafka_project \
+--bootstrap-server <EC2_PUBLIC_IP>:9092
+```
+
+Messages sent by producer will appear here.
+
+---
+
+## Step 9: Run Python Notebooks
+
+⚠️ **Important:** Run each notebook in a **separate terminal**.
+
+1. Run `KafkaProducer.ipynb`
+2. Run `KafkaConsumer.ipynb`
+
+---
+
+## Step 10: Verify Output
+
+* Check Kafka message flow
+* Verify data in **S3 Bucket**
+
+---
+
+## Notes
+
+* Replace `<EC2_PUBLIC_IP>` with your actual EC2 public IP
+* Ensure port **9092** is open in EC2 Security Group
+* Kafka and Zookeeper must remain running while producing/consuming
+
+---
+
+✅ Kafka setup completed successfully
